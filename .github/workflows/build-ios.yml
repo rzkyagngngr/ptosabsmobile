@@ -48,6 +48,7 @@ jobs:
           echo "Building workspace: $WORKSPACE with scheme: $SCHEME"
           
           # Build for generic iOS device
+          set -o pipefail
           xcodebuild -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -configuration Release \
@@ -57,25 +58,32 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="" \
-            clean archive | xcpretty || xcodebuild -workspace "$WORKSPACE" \
-            -scheme "$SCHEME" \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath $PWD/build/"$SCHEME".xcarchive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            DEVELOPMENT_TEAM="" \
-            clean archive
+            clean archive 2>&1 | tee build.log
+          
+          # Check if archive was created
+          if [ ! -d "$PWD/build/$SCHEME.xcarchive" ]; then
+            echo "ERROR: Archive was not created!"
+            echo "Last 50 lines of build log:"
+            tail -50 build.log
+            exit 1
+          fi
+          
+          echo "✅ Archive created successfully at: $PWD/build/$SCHEME.xcarchive"
 
       - name: Create IPA from .app bundle
         working-directory: ios
         run: |
           SCHEME=$(find . -name "*.xcworkspace" -type d | head -n 1 | xargs basename | sed 's/.xcworkspace//')
           
+          # Verify archive exists
+          if [ ! -d "build/$SCHEME.xcarchive" ]; then
+            echo "ERROR: Archive not found at build/$SCHEME.xcarchive"
+            exit 1
+          fi
+          
           # Debug: Check archive structure
           echo "=== Archive structure ==="
-          ls -R build/"$SCHEME".xcarchive/
+          ls -R build/"$SCHEME".xcarchive/ | head -100
           
           # Find .app location
           APP_PATH=$(find build/"$SCHEME".xcarchive -name "*.app" -type d | head -n 1)
@@ -98,6 +106,14 @@ jobs:
           
           echo "IPA created: $SCHEME-unsigned.ipa"
           ls -lh "$SCHEME-unsigned.ipa"
+      
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: ios/build.log
+          retention-days: 7
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4

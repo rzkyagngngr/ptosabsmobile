@@ -40,12 +40,25 @@ jobs:
         working-directory: ios
         run: pod install
 
+      - name: Setup Node binary for React Native bundler
+        run: |
+          echo "NODE_BINARY=$(which node)" >> $GITHUB_ENV
+          node --version
+          npm --version
+
       - name: Build iOS (unsigned for Sideloadly)
         working-directory: ios
+        env:
+          NODE_BINARY: node
         run: |
           WORKSPACE=$(find . -name "*.xcworkspace" -type d | head -n 1 | xargs basename)
           SCHEME=$(echo "$WORKSPACE" | sed 's/.xcworkspace//')
           echo "Building workspace: $WORKSPACE with scheme: $SCHEME"
+          
+          # Ensure node is in PATH for React Native bundler
+          export PATH="$PATH:$(dirname $(which node))"
+          echo "Node location: $(which node)"
+          echo "Node version: $(node --version)"
           
           # Build for generic iOS device
           set -o pipefail
@@ -58,6 +71,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="" \
+            NODE_BINARY="$(which node)" \
             clean archive 2>&1 | tee build.log
           
           # Check if archive was created

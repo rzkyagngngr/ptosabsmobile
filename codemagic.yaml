@@ -16,7 +16,7 @@ workflows:
         APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
         CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
       node: 18.20.2
-      xcode: 15.0
+      xcode: latest
       cocoapods: default
     triggering:
       events:
@@ -78,7 +78,7 @@ workflows:
         XCODE_SCHEME: "pelindoabsensi"
         BUNDLE_ID: "com.pelindo.absensi"
       node: 18.20.2
-      xcode: 15.0
+      xcode: latest
       cocoapods: default
     triggering:
       events:

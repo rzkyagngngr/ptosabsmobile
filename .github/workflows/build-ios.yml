@@ -1,0 +1,84 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch: # Manual trigger
+  push:
+    branches:
+      - main
+
+jobs:
+  build-ios:
+    runs-on: macos-latest # FREE macOS runner with Xcode
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Expo CLI
+        run: npm install -g expo-cli @expo/ngrok
+
+      - name: Prebuild iOS
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Install CocoaPods dependencies
+        working-directory: ios
+        run: pod install
+
+      - name: Build iOS (unsigned for Sideloadly)
+        working-directory: ios
+        run: |
+          xcodebuild -workspace pelindoabsensi.xcworkspace \
+            -scheme pelindoabsensi \
+            -configuration Release \
+            -archivePath $PWD/build/pelindoabsensi.xcarchive \
+            -sdk iphoneos \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            archive
+
+      - name: Export unsigned IPA
+        working-directory: ios
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath $PWD/build/pelindoabsensi.xcarchive \
+            -exportPath $PWD/build \
+            -exportOptionsPlist $PWD/exportOptions.plist
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pelindo-absensi-unsigned.ipa
+          path: ios/build/*.ipa
+          retention-days: 30
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ios/build/*.ipa
+          tag_name: v1.0.${{ github.run_number }}
+          name: iOS Build v1.0.${{ github.run_number }}
+          body: |
+            iOS IPA build (unsigned)
+            
+            **How to install:**
+            1. Download Sideloadly: https://sideloadly.io
+            2. Download the .ipa file below
+            3. Connect iPhone via USB
+            4. Open Sideloadly, drag .ipa file
+            5. Login with your Apple ID (free account)
+            6. Sideloadly will sign & install automatically
+            
+            ⚠️ App will expire in 7 days, re-sign with Sideloadly to refresh.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

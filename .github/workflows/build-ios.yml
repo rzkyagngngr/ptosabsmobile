@@ -29,6 +29,13 @@ jobs:
       - name: Prebuild iOS
         run: npx expo prebuild --platform ios --clean
 
+      - name: Check generated workspace
+        run: |
+          echo "Contents of ios directory:"
+          ls -la ios/
+          echo "Finding xcworkspace:"
+          find ios/ -name "*.xcworkspace" -type d
+
       - name: Install CocoaPods dependencies
         working-directory: ios
         run: pod install
@@ -36,10 +43,13 @@ jobs:
       - name: Build iOS (unsigned for Sideloadly)
         working-directory: ios
         run: |
-          xcodebuild -workspace pelindoabsensi.xcworkspace \
-            -scheme pelindoabsensi \
+          WORKSPACE=$(find . -name "*.xcworkspace" -type d | head -n 1 | xargs basename)
+          SCHEME=$(echo "$WORKSPACE" | sed 's/.xcworkspace//')
+          echo "Building workspace: $WORKSPACE with scheme: $SCHEME"
+          xcodebuild -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
             -configuration Release \
-            -archivePath $PWD/build/pelindoabsensi.xcarchive \
+            -archivePath $PWD/build/"$SCHEME".xcarchive \
             -sdk iphoneos \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
@@ -49,8 +59,10 @@ jobs:
       - name: Export unsigned IPA
         working-directory: ios
         run: |
+          WORKSPACE=$(find . -name "*.xcworkspace" -type d | head -n 1 | xargs basename)
+          SCHEME=$(echo "$WORKSPACE" | sed 's/.xcworkspace//')
           xcodebuild -exportArchive \
-            -archivePath $PWD/build/pelindoabsensi.xcarchive \
+            -archivePath $PWD/build/"$SCHEME".xcarchive \
             -exportPath $PWD/build \
             -exportOptionsPlist $PWD/exportOptions.plist
 

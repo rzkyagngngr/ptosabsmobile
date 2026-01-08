@@ -48,16 +48,24 @@ jobs:
 
       - name: Pre-bundle React Native JavaScript
         run: |
-          echo "Pre-bundling JavaScript for iOS..."
-          npx react-native bundle \
-            --platform ios \
-            --dev false \
-            --entry-file index.js \
-            --bundle-output ios/main.jsbundle \
-            --assets-dest ios/
+          echo "Exporting app for iOS..."
+          npx expo export --platform ios --output-dir dist
           
-          echo "JavaScript bundle created at ios/main.jsbundle"
-          ls -lh ios/main.jsbundle
+          # Copy bundle to expected location
+          mkdir -p ios/
+          if [ -f "dist/main.jsbundle" ]; then
+            cp dist/main.jsbundle ios/main.jsbundle
+          elif [ -f "dist/bundles/ios-*.js" ]; then
+            cp dist/bundles/ios-*.js ios/main.jsbundle
+          fi
+          
+          echo "Checking for bundle file..."
+          if [ -f "ios/main.jsbundle" ]; then
+            echo "✅ JavaScript bundle created at ios/main.jsbundle"
+            ls -lh ios/main.jsbundle
+          else
+            echo "⚠️ Warning: main.jsbundle not found, Xcode will bundle during build"
+          fi
 
       - name: Build iOS (unsigned for Sideloadly)
         working-directory: ios
@@ -85,7 +93,6 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="" \
             NODE_BINARY="$(which node)" \
-            SKIP_BUNDLING=1 \
             archive 2>&1 | tee build.log
           
           # Check if archive was created

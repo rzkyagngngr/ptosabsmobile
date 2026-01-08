@@ -46,38 +46,58 @@ jobs:
           WORKSPACE=$(find . -name "*.xcworkspace" -type d | head -n 1 | xargs basename)
           SCHEME=$(echo "$WORKSPACE" | sed 's/.xcworkspace//')
           echo "Building workspace: $WORKSPACE with scheme: $SCHEME"
+          
+          # Build for generic iOS device
           xcodebuild -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -configuration Release \
+            -destination 'generic/platform=iOS' \
             -archivePath $PWD/build/"$SCHEME".xcarchive \
-            -sdk iphoneos \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            archive
+            DEVELOPMENT_TEAM="" \
+            clean archive | xcpretty || xcodebuild -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath $PWD/build/"$SCHEME".xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            clean archive
 
-      - name: Export unsigned IPA
+      - name: Create IPA from .app bundle
         working-directory: ios
         run: |
-          WORKSPACE=$(find . -name "*.xcworkspace" -type d | head -n 1 | xargs basename)
-          SCHEME=$(echo "$WORKSPACE" | sed 's/.xcworkspace//')
-          xcodebuild -exportArchive \
-            -archivePath $PWD/build/"$SCHEME".xcarchive \
-            -exportPath $PWD/build \
-            -exportOptionsPlist $PWD/exportOptions.plist
+          SCHEME=$(find . -name "*.xcworkspace" -type d | head -n 1 | xargs basename | sed 's/.xcworkspace//')
+          
+          # Create Payload directory
+          mkdir -p build/Payload
+          
+          # Copy .app to Payload
+          cp -r build/"$SCHEME".xcarchive/Products/Applications/*.app build/Payload/
+          
+          # Create IPA (zip file)
+          cd build
+          zip -r "$SCHEME-unsigned.ipa" Payload
+          
+          echo "IPA created: $SCHEME-unsigned.ipa"
+          ls -lh "$SCHEME-unsigned.ipa"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: pelindo-absensi-unsigned.ipa
-          path: ios/build/*.ipa
+          path: ios/build/*-unsigned.ipa
           retention-days: 30
 
       - name: Create Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v1
         with:
-          files: ios/build/*.ipa
+          files: ios/build/*-unsigned.ipa
           tag_name: v1.0.${{ github.run_number }}
           name: iOS Build v1.0.${{ github.run_number }}
           body: |

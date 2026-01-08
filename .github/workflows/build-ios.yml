@@ -46,6 +46,19 @@ jobs:
           node --version
           npm --version
 
+      - name: Pre-bundle React Native JavaScript
+        run: |
+          echo "Pre-bundling JavaScript for iOS..."
+          npx react-native bundle \
+            --platform ios \
+            --dev false \
+            --entry-file index.js \
+            --bundle-output ios/main.jsbundle \
+            --assets-dest ios/
+          
+          echo "JavaScript bundle created at ios/main.jsbundle"
+          ls -lh ios/main.jsbundle
+
       - name: Build iOS (unsigned for Sideloadly)
         working-directory: ios
         env:
@@ -72,7 +85,8 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="" \
             NODE_BINARY="$(which node)" \
-            clean archive 2>&1 | tee build.log
+            SKIP_BUNDLING=1 \
+            archive 2>&1 | tee build.log
           
           # Check if archive was created
           if [ ! -d "$PWD/build/$SCHEME.xcarchive" ]; then

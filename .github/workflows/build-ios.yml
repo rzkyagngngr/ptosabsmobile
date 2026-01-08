@@ -73,11 +73,24 @@ jobs:
         run: |
           SCHEME=$(find . -name "*.xcworkspace" -type d | head -n 1 | xargs basename | sed 's/.xcworkspace//')
           
+          # Debug: Check archive structure
+          echo "=== Archive structure ==="
+          ls -R build/"$SCHEME".xcarchive/
+          
+          # Find .app location
+          APP_PATH=$(find build/"$SCHEME".xcarchive -name "*.app" -type d | head -n 1)
+          echo "Found .app at: $APP_PATH"
+          
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: No .app found in archive!"
+            exit 1
+          fi
+          
           # Create Payload directory
           mkdir -p build/Payload
           
           # Copy .app to Payload
-          cp -r build/"$SCHEME".xcarchive/Products/Applications/*.app build/Payload/
+          cp -r "$APP_PATH" build/Payload/
           
           # Create IPA (zip file)
           cd build

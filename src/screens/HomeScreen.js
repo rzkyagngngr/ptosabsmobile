@@ -26,8 +26,8 @@ import { PRIMARY, GREEN, RED, YELLOW, NEUTRAL } from '../utils/colors';
 import QRISModal from '../components/QRISModal';
 
 export default function HomeScreen({ navigation }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  // Force light mode - ignore system dark mode preference
+  const isDark = false;
   
   // Scroll animation
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -547,209 +547,190 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  // Animated values for header
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [Platform.OS === 'ios' ? 140 : 130, Platform.OS === 'ios' ? 93 : 87],
-    extrapolate: 'clamp',
-  });
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Selamat Pagi';
+    if (hour < 18) return 'Selamat Siang';
+    return 'Selamat Malam';
+  };
 
-  const headerPaddingTop = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [Platform.OS === 'ios' ? 60 : 50, Platform.OS === 'ios' ? 48 : 42],
-    extrapolate: 'clamp',
-  });
+  const getTodayDate = () => {
+    return new Date().toLocaleDateString('id-ID', { 
+      weekday: 'long', 
+      day: 'numeric',
+      month: 'long', 
+      year: 'numeric'
+    });
+  };
 
-  const headerPaddingBottom = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [24, 16],
-    extrapolate: 'clamp',
-  });
+  // Calculate days remaining (example)
+  const getDaysRemaining = () => {
+    const today = new Date();
+    const end = new Date(endDate);
+    const diffTime = end - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
 
-  const borderRadius = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [30, 20],
-    extrapolate: 'clamp',
-  });
-
-  const badgeOpacity = scrollY.interpolate({
-    inputRange: [0, 30, 60],
-    outputRange: [1, 0.5, 0],
-    extrapolate: 'clamp',
-  });
-
-  const profileImageSize = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [56, 44],
-    extrapolate: 'clamp',
-  });
-
-  const titleFontSize = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [22, 19],
-    extrapolate: 'clamp',
-  });
-
-  const nameContainerMargin = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [16, 12],
-    extrapolate: 'clamp',
-  });
-
-  const profileIconTranslateY = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [0, -14],
-    extrapolate: 'clamp',
-  });
+  // Calculate attendance completion percentage
+  const getAttendancePercentage = () => {
+    const totalDays = stats.totalDays || 0;
+    const successCount = stats.successCount || 0;
+    if (totalDays === 0) {
+      // Calculate based on date range for initial display
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const today = new Date();
+      
+      if (today < start) return 0;
+      if (today > end) return 100;
+      
+      const totalRangeDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      const passedDays = Math.ceil((today - start) / (1000 * 60 * 60 * 24));
+      const percentage = Math.round((passedDays / totalRangeDays) * 100);
+      return isNaN(percentage) ? 0 : Math.max(0, Math.min(100, percentage));
+    }
+    // Calculate based on actual attendance (clock in/out counted as success)
+    const percentage = Math.round((successCount / (totalDays * 2)) * 100);
+    return isNaN(percentage) ? 0 : Math.max(0, Math.min(100, percentage));
+  };
+  
+  // Calculate total workdays in selected range
+  const getTotalWorkdaysInRange = () => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    // Estimate workdays (excluding weekends ~ 71% of days)
+    return Math.round(diffDays * 0.71);
+  };
+  
+  // Get current month attendance rate
+  const getCurrentMonthAttendanceRate = () => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const currentDay = today.getDate();
+    const totalDaysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    
+    // Estimate workdays passed (excluding weekends)
+    const workdaysPassed = Math.round(currentDay * 0.71);
+    const totalWorkdays = Math.round(totalDaysInMonth * 0.71);
+    
+    if (stats.totalDays > 0) {
+      return Math.round((stats.successCount / (totalWorkdays * 2)) * 100);
+    }
+    
+    return Math.round((workdaysPassed / totalWorkdays) * 100);
+  };
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#8B7CFF', '#B8A9FF', '#E8E3FF', '#F6F8FB', '#FFFFFF']}
+        locations={[0, 0.25, 0.5, 0.75, 1]}
+        start={[1, 0]}
+        end={[0, 1]}
+        style={StyleSheet.absoluteFill}
+      />
       <StatusBar 
         barStyle="light-content"
         backgroundColor="transparent"
         translucent={true}
       />
       
-      {/* Liquid Glass Header */}
-      <Animated.View style={[styles.headerContainer, { 
-        height: headerHeight,
-        borderBottomLeftRadius: borderRadius,
-        borderBottomRightRadius: borderRadius,
-      }]}>
-        {Platform.OS === 'ios' ? (
-          <BlurView intensity={100} tint="light" style={StyleSheet.absoluteFill} />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.85)' }]} />
-        )}
-        <Animated.View style={{ 
-          borderBottomLeftRadius: borderRadius,
-          borderBottomRightRadius: borderRadius,
-          flex: 1,
-        }}>
-          <LinearGradient
-            colors={[PRIMARY.DARK, PRIMARY.MEDIUM, PRIMARY.LIGHT]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.headerGradient, {
-              borderBottomLeftRadius: 20,
-              borderBottomRightRadius: 20,
-            }]}
-          >
-            <Animated.View style={[styles.header, {
-              paddingTop: headerPaddingTop,
-              paddingBottom: headerPaddingBottom,
-            }]}>
-              <View style={styles.profileSection}>
-                <Animated.View style={{ 
-                  width: profileImageSize, 
-                  height: profileImageSize,
-                  transform: [{ translateY: profileIconTranslateY }]
-                }}>
-                  <LinearGradient
-                    colors={['#FFFFFF', '#F0F9FF']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={[styles.profileImage, {
-                      width: '100%',
-                      height: '100%',
-                    }]}
-                  >
-                    <FontAwesome5 name="user" size={20} color="#007AFF" />
-                  </LinearGradient>
-                </Animated.View>
-                <Animated.View style={{ marginLeft: nameContainerMargin }}>
-                  <Animated.Text style={[styles.headerTitle, { fontSize: titleFontSize }]}>
-                    {nickname || 'User'}
-                  </Animated.Text>
-                  <Animated.View style={[styles.badgeRow, { opacity: badgeOpacity }]}>
-                    <View style={styles.badge}>
-                      <FontAwesome5 name="briefcase" size={10} color="#FFFFFF" />
-                      <Text style={styles.badgeText}>PTOS Batch</Text>
-                    </View>
-                  </Animated.View>
-                </Animated.View>
-              </View>
-            </Animated.View>
-          </LinearGradient>
-        </Animated.View>
-      </Animated.View>
-
       <ScrollView 
-        style={styles.content}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
         )}
         scrollEventThrottle={16}
       >
-        {/* Stats Row - Show when started, hide when reset */}
-        {showStats && (
-          <Animated.View style={[styles.statsCard, { opacity: statsOpacity }]}>
-            <View style={styles.statItem}>
-              <View style={[styles.statIcon, { backgroundColor: GREEN.DARK }]}>
-                <FontAwesome5 name="check-circle" size={20} color="#FFFFFF" solid />
-              </View>
-              <Text style={styles.statValue}>{stats.successCount}</Text>
-              <Text style={styles.statLabel}>Berhasil</Text>
-            </View>
-            
-            <View style={styles.statItem}>
-              <View style={[styles.statIcon, { backgroundColor: RED.DARK }]}>
-                <FontAwesome5 name="times-circle" size={20} color="#FFFFFF" solid />
-              </View>
-              <Text style={styles.statValue}>{stats.errorCount}</Text>
-              <Text style={styles.statLabel}>Gagal</Text>
-            </View>
-            
-            <View style={styles.statItem}>
-              <View style={[styles.statIcon, { backgroundColor: PRIMARY.DARK }]}>
-                <FontAwesome5 name="calendar-alt" size={20} color="#FFFFFF" solid />
-              </View>
-              <Text style={styles.statValue}>{stats.totalDays}</Text>
-              <Text style={styles.statLabel}>Total Hari</Text>
-            </View>
-            
-            {isRunning && (
-              <View style={styles.processStatus}>
-                <ActivityIndicator size="small" color={PRIMARY.MEDIUM} />
-                <Text style={styles.processLabel}>Memproses: {stats.currentDate || '-'}</Text>
-              </View>
-            )}
-            
-            {!isRunning && stats.totalDays > 0 && (
-              <View style={styles.processStatus}>
-                <FontAwesome5 name="check-circle" size={14} color={GREEN.MEDIUM} solid />
-                <Text style={styles.processDone}>
-                  Selesai! {stats.successCount} Berhasil, {stats.errorCount} Gagal
-                </Text>
-              </View>
-            )}
-          </Animated.View>
-        )}
+        {/* Header Section */}
+        <View style={styles.headerSection}>
+          <Text style={styles.greetingText}>{getGreeting()}, {nickname || 'User'}</Text>
+          <Text style={styles.dateSubtitle}>{getTodayDate()}</Text>
+        </View>
 
-        {/* User Data Form & Absensi Settings */}
-        <View style={[styles.card, styles.cardWithTopMargin]}>
-          {/* Detail Toggle Button */}
-          <TouchableOpacity 
-            style={styles.detailToggle}
-            onPress={() => setShowDetails(!showDetails)}
-          >
-            <View style={styles.detailToggleContent}>
-              <FontAwesome5 name="info-circle" size={14} color="#007AFF" />
-              <Text style={styles.detailToggleText}>Detail</Text>
+        {/* Attendance Progress Card */}
+        <View style={styles.activeGoalCard}>
+          <BlurView intensity={Platform.OS === 'ios' ? 50 : 25} tint='light' style={styles.glassBlur}>
+            <Text style={styles.goalBadge}>Target</Text>
+            
+            {/* Progress Bar with Percentage */}
+            <View style={styles.progressRowContainer}>
+              <View style={styles.progressBarWrapper}>
+                <View style={styles.progressTrack}>
+                  <LinearGradient
+                    colors={['#007AFF', '#00C6FF']}
+                    start={[0, 0]}
+                    end={[1, 0]}
+                    style={[styles.progressFill, { width: String(getAttendancePercentage()) + '%' }]}
+                  >
+                    <View style={styles.progressGlow} />
+                  </LinearGradient>
+                </View>
+              </View>
+              
+              <Text style={styles.bigPercentage}>{getAttendancePercentage()}%</Text>
             </View>
-            <FontAwesome5 
-              name={showDetails ? "chevron-up" : "chevron-down"} 
-              size={12} 
-              color="#6B7280" 
-            />
-          </TouchableOpacity>
+            
+            {/* Attendance Stats Row */}
+            <View style={styles.miniStatsRow}>
+              <View style={styles.miniStatItem}>
+                <Text style={styles.miniStatValue}>{getTotalWorkdaysInRange()}</Text>
+                <Text style={styles.miniStatLabel}>Hari Kerja</Text>
+              </View>
+              <View style={styles.miniStatDivider} />
+              <View style={styles.miniStatItem}>
+                <Text style={styles.miniStatValue}>{stats.successCount || 0}</Text>
+                <Text style={styles.miniStatLabel}>Absen Sukses</Text>
+              </View>
+              <View style={styles.miniStatDivider} />
+              <View style={styles.miniStatItem}>
+                <Text style={styles.miniStatValue}>{stats.errorCount || 0}</Text>
+                <Text style={styles.miniStatLabel}>Gagal</Text>
+              </View>
+            </View>
+          </BlurView>
+        </View>
 
-          {/* User Data Fields - Hidden by default */}
-          {showDetails && (
-            <>
+        {/* Section Title */}
+        <Text style={styles.sectionTitle}>Pengaturan Absensi</Text>
+
+        {/* Learning Item 1 - Configuration */}
+        <TouchableOpacity 
+          style={styles.learningItem}
+          onPress={() => setShowDetails(!showDetails)}
+        >
+          <BlurView intensity={Platform.OS === 'ios' ? 45 : 22} tint="light" style={styles.glassBlur}>
+            <View style={styles.learningItemContent}>
+              <View style={[styles.learningIconBox, { backgroundColor: '#FFF0EB' }]}>
+                <FontAwesome5 name="cog" size={20} color="#FF6B6B" />
+              </View>
+              <View style={styles.learningTextColumn}>
+                <Text style={styles.learningTitle}>Konfigurasi Lokasi</Text>
+                <Text style={styles.learningSubtitle}>Atur lokasi & koordinat absen</Text>
+              </View>
+              <View style={styles.learningActionIcon}>
+                <FontAwesome5 
+                  name={showDetails ? "chevron-up" : "chevron-down"} 
+                  size={14} 
+                  color="#FFFFFF" 
+                />
+              </View>
+            </View>
+          </BlurView>
+        </TouchableOpacity>
+
+        {/* Configuration Detail (Collapsible) */}
+        {showDetails && (
+          <View style={styles.configDetailCard}>
+            <BlurView intensity={Platform.OS === 'ios' ? 45 : 22} tint="light" style={styles.glassBlur}>
               <TextInput
-                style={styles.input}
+                style={styles.modernInput}
                 placeholder="Lokasi *"
                 placeholderTextColor="#9CA3AF"
                 value={lokasi}
@@ -757,7 +738,7 @@ export default function HomeScreen({ navigation }) {
               />
               <View style={styles.row}>
                 <TextInput
-                  style={[styles.input, styles.halfInput]}
+                  style={[styles.modernInput, styles.halfInput]}
                   placeholder="Latitude *"
                   placeholderTextColor="#9CA3AF"
                   value={lat}
@@ -765,7 +746,7 @@ export default function HomeScreen({ navigation }) {
                   keyboardType="numeric"
                 />
                 <TextInput
-                  style={[styles.input, styles.halfInput]}
+                  style={[styles.modernInput, styles.halfInput]}
                   placeholder="Longitude *"
                   placeholderTextColor="#9CA3AF"
                   value={lng}
@@ -774,209 +755,301 @@ export default function HomeScreen({ navigation }) {
                 />
               </View>
               <TextInput
-                style={styles.input}
+                style={styles.modernInput}
                 placeholder="Komentar (opsional)"
                 placeholderTextColor="#9CA3AF"
                 value={komentar}
                 onChangeText={setKomentar}
               />
               <TextInput
-                style={styles.input}
+                style={styles.modernInput}
                 placeholder="Program Name (opsional)"
                 placeholderTextColor="#9CA3AF"
                 value={programeName}
                 onChangeText={setProgrameName}
               />
-              <View style={styles.sectionDivider} />
-            </>
-          )}
-          
-          {/* Periode Absensi - Always visible */}
-          {/* <Text style={styles.sectionLabel}>Periode Absensi</Text> */}
-          <View style={styles.dateRow}>
-            <View style={styles.dateGroup}>
-              <Text style={styles.label}>Tanggal Mulai</Text>
-              <TouchableOpacity style={styles.dateButton} onPress={() => setShowStartPicker(true)}>
-                <Text style={styles.dateText}>{formatDate(startDate)}</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.dateGroup}>
-              <Text style={styles.label}>Tanggal Akhir</Text>
-              <TouchableOpacity style={styles.dateButton} onPress={() => setShowEndPicker(true)}>
-                <Text style={styles.dateText}>{formatDate(endDate)}</Text>
-              </TouchableOpacity>
-            </View>
+            </BlurView>
           </View>
+        )}
 
-          {showStartPicker && (
-            <>
-              {Platform.OS === 'ios' && (
-                <View style={styles.datePickerModal}>
-                  <View style={styles.datePickerHeader}>
-                    <TouchableOpacity onPress={() => setShowStartPicker(false)}>
-                      <Text style={styles.datePickerDone}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <DateTimePicker
-                    value={startDate}
-                    mode="date"
-                    display="spinner"
-                    onChange={(event, selectedDate) => {
-                      if (selectedDate) setStartDate(selectedDate);
-                    }}
-                  />
+        {/* Learning Item 2 - Date Range */}
+        <View style={styles.learningItem}>
+          <BlurView intensity={Platform.OS === 'ios' ? 45 : 22} tint="light" style={styles.glassBlur}>
+            <View style={styles.learningItemContent}>
+              <View style={[styles.learningIconBox, { backgroundColor: '#E8F1FF' }]}>
+                <FontAwesome5 name="calendar-alt" size={20} color="#007AFF" />
+              </View>
+              <View style={styles.learningTextColumn}>
+                <Text style={styles.learningTitle}>Periode Absensi</Text>
+                <Text style={styles.learningSubtitle}>Pilih rentang tanggal</Text>
+              </View>
+            </View>
+          </BlurView>
+        </View>
+
+        {/* Date Range Card */}
+        <View style={styles.dateRangeCard}>
+          <BlurView intensity={Platform.OS === 'ios' ? 45 : 22} tint="light" style={styles.glassBlur}>
+            <View style={styles.dateRow}>
+              <View style={styles.dateGroup}>
+                <Text style={styles.modernLabel}>Tanggal Mulai</Text>
+                <TouchableOpacity style={styles.modernDateButton} onPress={() => setShowStartPicker(true)}>
+                  <Text style={styles.modernDateText}>{formatDate(startDate)}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.dateGroup}>
+                <Text style={styles.modernLabel}>Tanggal Akhir</Text>
+                <TouchableOpacity style={styles.modernDateButton} onPress={() => setShowEndPicker(false)}>
+                  <Text style={styles.modernDateText}>{formatDate(endDate)}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </BlurView>
+        </View>
+
+        {showStartPicker && (
+          <>
+            {Platform.OS === 'ios' && (
+              <View style={styles.datePickerModal}>
+                <View style={styles.datePickerHeader}>
+                  <TouchableOpacity onPress={() => setShowStartPicker(false)}>
+                    <Text style={styles.datePickerDone}>Done</Text>
+                  </TouchableOpacity>
                 </View>
-              )}
-              {Platform.OS === 'android' && (
                 <DateTimePicker
                   value={startDate}
                   mode="date"
-                  display="default"
+                  display="spinner"
                   onChange={(event, selectedDate) => {
-                    setShowStartPicker(false);
                     if (selectedDate) setStartDate(selectedDate);
                   }}
                 />
-              )}
-            </>
-          )}
+              </View>
+            )}
+            {Platform.OS === 'android' && (
+              <DateTimePicker
+                value={startDate}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowStartPicker(false);
+                  if (selectedDate) setStartDate(selectedDate);
+                }}
+              />
+            )}
+          </>
+        )}
 
-          {showEndPicker && (
-            <>
-              {Platform.OS === 'ios' && (
-                <View style={styles.datePickerModal}>
-                  <View style={styles.datePickerHeader}>
-                    <TouchableOpacity onPress={() => setShowEndPicker(false)}>
-                      <Text style={styles.datePickerDone}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <DateTimePicker
-                    value={endDate}
-                    mode="date"
-                    display="spinner"
-                    onChange={(event, selectedDate) => {
-                      if (selectedDate) setEndDate(selectedDate);
-                    }}
-                  />
+        {showEndPicker && (
+          <>
+            {Platform.OS === 'ios' && (
+              <View style={styles.datePickerModal}>
+                <View style={styles.datePickerHeader}>
+                  <TouchableOpacity onPress={() => setShowEndPicker(false)}>
+                    <Text style={styles.datePickerDone}>Done</Text>
+                  </TouchableOpacity>
                 </View>
-              )}
-              {Platform.OS === 'android' && (
                 <DateTimePicker
                   value={endDate}
                   mode="date"
-                  display="default"
+                  display="spinner"
                   onChange={(event, selectedDate) => {
-                    setShowEndPicker(false);
                     if (selectedDate) setEndDate(selectedDate);
                   }}
                 />
-              )}
-            </>
-          )}
-        </View>
+              </View>
+            )}
+            {Platform.OS === 'android' && (
+              <DateTimePicker
+                value={endDate}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowEndPicker(false);
+                  if (selectedDate) setEndDate(selectedDate);
+                }}
+              />
+            )}
+          </>
+        )}
 
-        {/* Image Selection / Activity Log (Conditional with Animation) */}
-        <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
-          {!showActivityLog ? (
-            // Image Selection
-            <>
-              <Text style={styles.cardTitle}>Gambar ({selectedImages.length})</Text>
-              
+        {/* Learning Item 3 - Images */}
+        {!showActivityLog && (
+          <>
+            <View style={styles.learningItem}>
+              <BlurView intensity={Platform.OS === 'ios' ? 45 : 22} tint="light" style={styles.glassBlur}>
+                <View style={styles.learningItemContent}>
+                  <View style={[styles.learningIconBox, { backgroundColor: '#FFF0EB' }]}>
+                    <FontAwesome5 name="images" size={20} color="#FF6B6B" />
+                  </View>
+                  <View style={styles.learningTextColumn}>
+                    <Text style={styles.learningTitle}>Galeri Foto Absensi</Text>
+                    <Text style={styles.learningSubtitle}>{selectedImages.length} foto tersimpan</Text>
+                  </View>
+                </View>
+              </BlurView>
+            </View>
+
+            <View style={styles.imageManagementCard}>
+              <BlurView intensity={Platform.OS === 'ios' ? 45 : 22} tint="light" style={styles.glassBlur}>
               <View style={styles.imageButtonRow}>
                 <TouchableOpacity 
-                  style={styles.compactButton} 
+                  style={styles.modernCompactButton} 
                   onPress={handleTakePhoto}
                 >
-                  <FontAwesome5 name="camera" size={12} color="#007AFF" />
-                  <Text style={styles.compactButtonText}>Ambil Foto</Text>
+                  <FontAwesome5 name="camera" size={14} color="#007AFF" />
+                  <Text style={styles.modernCompactButtonText}>Ambil Foto</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                  style={styles.compactButton} 
+                  style={styles.modernCompactButton} 
                   onPress={handleSelectFromGallery}
                 >
-                  <FontAwesome5 name="images" size={12} color="#007AFF" />
-                  <Text style={styles.compactButtonText}>Galeri</Text>
+                  <FontAwesome5 name="images" size={14} color="#007AFF" />
+                  <Text style={styles.modernCompactButtonText}>Dari Galeri</Text>
                 </TouchableOpacity>
               </View>
 
               {selectedImages.length > 0 && (
-                <>
-                  <FlatList
-                    data={selectedImages}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    keyExtractor={(item, index) => index.toString()}
-                    renderItem={({ item, index }) => (
-                      <View style={styles.imageThumbContainer}>
-                        <Image source={{ uri: item }} style={styles.imageThumb} />
-                        <TouchableOpacity
-                          style={styles.deleteButton}
-                          onPress={() => handleDeleteImage(index)}
-                        >
-                          <Text style={styles.deleteButtonText}>✕</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                    style={styles.imageList}
-                  />
-                </>
-              )}
-            </>
-          ) : (
-            // Activity Log
-            <>
-              <Text style={styles.cardTitle}>Activity Log</Text>
-              <View style={styles.logsContainer}>
-                {logs.length === 0 ? (
-                  <Text style={styles.emptyText}>Belum ada aktivitas</Text>
-                ) : (
-                  logs.slice().reverse().slice(0, 50).map((log, index) => (
-                    <View key={index} style={[styles.logItem, getLogStyle(log.type)]}>
-                      <Text style={styles.logTime}>{formatTime(log.timestamp)}</Text>
-                      <Text style={styles.logMessage}>{log.message}</Text>
+                <FlatList
+                  data={selectedImages}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item, index) => index.toString()}
+                  renderItem={({ item, index }) => (
+                    <View style={styles.modernImageThumb}>
+                      <Image source={{ uri: item }} style={styles.modernImageThumbImg} />
+                      <TouchableOpacity
+                        style={styles.modernDeleteButton}
+                        onPress={() => handleDeleteImage(index)}
+                      >
+                        <Text style={styles.deleteButtonText}>✕</Text>
+                      </TouchableOpacity>
                     </View>
-                  ))
-                )}
+                  )}
+                  style={styles.imageList}
+                />
+              )}
+              </BlurView>
+            </View>
+          </>
+        )}
+
+        {/* Activity Log */}
+        {showActivityLog && (
+          <>
+            <View style={styles.learningItem}>
+              <BlurView intensity={Platform.OS === 'ios' ? 45 : 22} tint="light" style={styles.glassBlur}>
+                <View style={styles.learningItemContent}>
+                  <View style={[styles.learningIconBox, { backgroundColor: '#E8F1FF' }]}>
+                    <FontAwesome5 name="list-ul" size={20} color="#007AFF" />
+                  </View>
+                  <View style={styles.learningTextColumn}>
+                    <Text style={styles.learningTitle}>Log Aktivitas</Text>
+                    <Text style={styles.learningSubtitle}>Pembaruan real-time</Text>
+                  </View>
+                </View>
+              </BlurView>
+            </View>
+
+            <View style={styles.activityLogCard}>
+              <BlurView intensity={Platform.OS === 'ios' ? 45 : 22} tint="light" style={styles.glassBlur}>
+              {logs.length === 0 ? (
+                <Text style={styles.emptyText}>Belum ada aktivitas</Text>
+              ) : (
+                logs.slice().reverse().slice(0, 50).map((log, index) => (
+                  <View key={index} style={[styles.logItem, getLogStyle(log.type)]}>
+                    <Text style={styles.logTime}>{formatTime(log.timestamp)}</Text>
+                    <Text style={styles.logMessage}>{log.message}</Text>
+                  </View>
+                ))
+              )}
+              </BlurView>
+            </View>
+          </>
+        )}
+
+        {/* Stats Card */}
+        {showStats && (
+          <Animated.View style={[styles.modernStatsCard, { opacity: statsOpacity }]}>
+            <BlurView intensity={Platform.OS === 'ios' ? 45 : 22} tint="light" style={styles.glassBlur}>
+            <View style={styles.statRow}>
+              <View style={styles.modernStatItem}>
+                <View style={[styles.modernStatIcon, { backgroundColor: '#4CD9C0' }]}>
+                  <FontAwesome5 name="check-circle" size={18} color="#FFFFFF" solid />
+                </View>
+                <Text style={styles.modernStatValue}>{stats.successCount}</Text>
+                <Text style={styles.modernStatLabel}>BERHASIL</Text>
               </View>
-            </>
-          )}
-        </Animated.View>
+              
+              <View style={styles.modernStatItem}>
+                <View style={[styles.modernStatIcon, { backgroundColor: '#FF6B6B' }]}>
+                  <FontAwesome5 name="times-circle" size={18} color="#FFFFFF" solid />
+                </View>
+                <Text style={styles.modernStatValue}>{stats.errorCount}</Text>
+                <Text style={styles.modernStatLabel}>GAGAL</Text>
+              </View>
+              
+              <View style={styles.modernStatItem}>
+                <View style={[styles.modernStatIcon, { backgroundColor: '#7F77FE' }]}>
+                  <FontAwesome5 name="calendar-alt" size={18} color="#FFFFFF" solid />
+                </View>
+                <Text style={styles.modernStatValue}>{stats.totalDays}</Text>
+                <Text style={styles.modernStatLabel}>TOTAL HARI</Text>
+              </View>
+            </View>
+            
+            {isRunning && (
+              <View style={styles.processingStatus}>
+                <ActivityIndicator size="small" color="#7F77FE" />
+                <Text style={styles.processingText}>Memproses: {stats.currentDate || '-'}</Text>
+              </View>
+            )}
+            </BlurView>
+          </Animated.View>
+        )}
 
         {/* Action Buttons */}
-        <View style={styles.card}>
-          <View style={styles.buttonRow}>
+        <View style={styles.actionButtonsContainer}>
+          {!isRunning && !showActivityLog && (
             <TouchableOpacity
-              style={[styles.button, styles.buttonPrimary, (isRunning || loading) && styles.buttonDisabled]}
+              style={[styles.modernButton, styles.modernButtonPrimary]}
               onPress={handleStartAbsensi}
-              disabled={isRunning || loading}
+              disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <FontAwesome5 name="play" size={14} color="#FFFFFF" style={styles.buttonIcon} />
-                  <Text style={styles.buttonText}>Mulai Absensi</Text>
+                  <LinearGradient
+                    colors={['#7F77FE', '#A47AF6']}
+                    start={[0, 0]}
+                    end={[1, 0]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <FontAwesome5 name="play" size={16} color="#FFFFFF" />
+                  <Text style={styles.modernButtonText}>Mulai Absensi Otomatis</Text>
                 </>
               )}
             </TouchableOpacity>
+          )}
 
-            {showActivityLog && !isRunning && (
-              <TouchableOpacity style={[styles.button, styles.buttonSecondary]} onPress={handleReset}>
-                <FontAwesome5 name="redo" size={14} color="#007AFF" style={styles.buttonIcon} />
-                <Text style={styles.buttonTextSecondary}>Reset</Text>
-              </TouchableOpacity>
-            )}
+          {isRunning && (
+            <TouchableOpacity style={styles.modernButtonDanger} onPress={handleStopAbsensi}>
+              <FontAwesome5 name="stop" size={16} color="#FFFFFF" />
+              <Text style={styles.modernButtonText}>Hentikan Proses</Text>
+            </TouchableOpacity>
+          )}
 
-            {isRunning && (
-              <TouchableOpacity style={[styles.button, styles.buttonDanger]} onPress={handleStopAbsensi}>
-                <FontAwesome5 name="stop" size={14} color="#FFFFFF" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Stop</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          {showActivityLog && !isRunning && (
+            <TouchableOpacity style={styles.modernButtonSecondary} onPress={handleReset}>
+              <FontAwesome5 name="redo" size={16} color="#1A1B25" />
+              <Text style={styles.modernButtonTextSecondary}>Reset & Mulai Lagi</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
+        <View style={{ height: 40 }} />
       </ScrollView>
       
       {/* QRIS Modal */}
@@ -994,397 +1067,508 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  // Light Theme (Default)
+  // Global Container
   container: { 
     flex: 1, 
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#F6F8FB',
   },
-  containerDark: {
-    backgroundColor: '#000000',
+  scrollView: {
+    flex: 1,
   },
-  headerContainer: {
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingBottom: 40,
+  },
+  topBlurOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
+    height: Platform.OS === 'ios' ? 90 : 75,
     zIndex: 1000,
+  },
+  
+  // Header Section
+  headerSection: {
+    marginBottom: 24,
+    marginTop: 20,
+  },
+  greetingText: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  dateSubtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#E8E3FF',
+    marginTop: 4,
+  },
+  
+  // Active Goal Card (Main Hero)
+  activeGoalCard: {
+    borderRadius: 30,
+    marginTop: 32,
+    marginBottom: 24,
     overflow: 'hidden',
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+    elevation: 10,
+    borderWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.8)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.6)',
+    borderRightColor: 'rgba(255, 255, 255, 0.3)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
   },
-  headerGradient: {
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+  glassBlur: {
+    padding: 24,
+    borderRadius: 30,
+    overflow: 'hidden',
   },
-  header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
+  goalBadge: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#8F92A1',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 24,
   },
-  profileSection: {
+  progressRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  progressBarWrapper: {
+    flex: 0.7,
+  },
+  bigPercentage: {
+    flex: 0.3,
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#007AFF',
+    textAlign: 'right',
+    letterSpacing: -2,
+  },
+  
+  // Progress Bar
+  progressTrack: {
+    height: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 122, 255, 0.12)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  progressFill: {
+    height: 12,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 4,
+    position: 'relative',
+  },
+  progressGlow: {
+    position: 'absolute',
+    right: 0,
+    width: 40,
+    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 8,
+  },
+  
+  // Mini Stats Row (inside card)
+  miniStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#F4F5F7',
+  },
+  miniStatItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  miniStatValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1B25',
+    marginBottom: 4,
+  },
+  miniStatLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#8F92A1',
+    textAlign: 'center',
+  },
+  miniStatDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#E5E7EB',
+  },
+  
+  // Section Title
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1B25',
+    marginBottom: 16,
+  },
+  
+  // Learning Items
+  learningItem: {
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 6,
+    borderWidth: 1.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.7)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.5)',
+    borderRightColor: 'rgba(255, 255, 255, 0.3)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  learningItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  profileImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  learningIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 6,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-  headerTitle: { 
-    fontSize: 22, 
-    fontWeight: '700', 
-    color: '#FFFFFF',
-    marginBottom: 6,
-    letterSpacing: 0.3,
-    textShadowColor: 'rgba(0, 0, 0, 0.15)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  learningTextColumn: {
+    flex: 1,
   },
-  badgeRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    gap: 4,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-  },
-  badgeText: {
-    fontSize: 12,
-    color: '#FFFFFF',
+  learningTitle: {
+    fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  textDark: {
-    color: '#FFFFFF',
-  },
-  textSecondaryDark: {
-    color: 'rgba(255, 255, 255, 0.6)',
-  },
-  content: { flex: 1, paddingBottom: 500, paddingTop: Platform.OS === 'ios' ? 140 : 130 },
-  
-  // Stats Card - Solid
-  statsCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    padding: 20,
-    borderRadius: 20,
-    backgroundColor: `${PRIMARY.DEEP}18`,
-  },
-  statItem: {
-    alignItems: 'center',
-    width: '30%',
-  },
-  statIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#1F2937',
+    color: '#1A1B25',
     marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#6B7280',
+  learningSubtitle: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#8F92A1',
   },
-  processStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  learningActionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(26, 27, 37, 0.85)',
     justifyContent: 'center',
-    width: '100%',
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#CBD5E1',
-    gap: 8,
-  },
-  processLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-    marginLeft: 8,
-  },
-  processDone: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: GREEN.MEDIUM,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   
-  card: { 
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16, 
-    marginBottom: 16, 
-    borderRadius: 20, 
-    padding: 20, 
+  // Config Detail Card
+  configDetailCard: {
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 6,
+    borderWidth: 1.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.7)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.5)',
+    borderRightColor: 'rgba(255, 255, 255, 0.3)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  modernInput: {
+    backgroundColor: 'rgba(249, 250, 251, 0.5)',
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    marginBottom: 12,
+    color: '#1A1B25',
   },
-  cardWithTopMargin: {
-    marginTop: 16,
+  row: { 
+    flexDirection: 'row', 
+    gap: 12 
   },
-  sectionDivider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 20,
+  halfInput: { 
+    flex: 1 
   },
-  sectionLabel: {
-    fontSize: 14,
+  
+  // Date Range Card
+  dateRangeCard: {
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 6,
+    borderWidth: 1.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.7)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.5)',
+    borderRightColor: 'rgba(255, 255, 255, 0.3)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  dateRow: { 
+    flexDirection: 'row', 
+    gap: 12 
+  },
+  dateGroup: { 
+    flex: 1 
+  },
+  modernLabel: {
+    fontSize: 13,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  detailToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F9FAFB',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginBottom: 16,
+  modernDateButton: {
+    backgroundColor: 'rgba(249, 250, 251, 0.7)',
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(255, 255, 255, 0.6)',
   },
-  detailToggleContent: {
+  modernDateText: {
+    fontSize: 15,
+    color: '#1A1B25',
+    fontWeight: '500',
+  },
+  
+  // Image Management Card
+  imageManagementCard: {
+    borderRadius: 24,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.07,
+    shadowRadius: 28,
+    elevation: 6,
+  },
+  imageButtonRow: { 
+    flexDirection: 'row', 
+    marginBottom: 16 
+  },
+  modernCompactButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(243, 244, 246, 0.8)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
     gap: 8,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
   },
-  detailToggleText: {
+  modernCompactButtonText: {
     fontSize: 13,
     fontWeight: '600',
     color: '#007AFF',
   },
-  compactButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 6,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+  imageList: { 
+    marginTop: 8 
   },
-  compactButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  card_original: { 
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16, 
-    marginBottom: 16, 
-    borderRadius: 20, 
-    padding: 20, 
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  cardTitle: { 
-    fontSize: 17, 
-    fontWeight: '700', 
-    color: '#1A1A1A', 
-    marginBottom: 16,
-    letterSpacing: 0.3,
-  },
-  input: { 
-    backgroundColor: '#F9FAFB', 
-    borderRadius: 12, 
-    padding: 14, 
-    fontSize: 15, 
-    borderWidth: 1, 
-    borderColor: '#E5E7EB', 
-    marginBottom: 12,
-    color: '#1A1A1A',
-  },
-  row: { flexDirection: 'row', gap: 12 },
-  halfInput: { flex: 1 },
-  dateRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  dateGroup: { flex: 1 },
-  label: { 
-    fontSize: 13, 
-    fontWeight: '600', 
-    color: '#374151', 
-    marginBottom: 8,
-    letterSpacing: 0.3,
-  },
-  dateButton: { 
-    backgroundColor: '#F9FAFB', 
-    borderRadius: 12, 
-    padding: 14, 
-    borderWidth: 1, 
-    borderColor: '#E5E7EB',
-  },
-  dateText: { 
-    fontSize: 15, 
-    color: '#1A1A1A',
-  },
-  buttonRow: { flexDirection: 'row', gap: 12 },
-  button: { 
-    flexDirection: 'row',
-    flex: 1, 
-    borderRadius: 14, 
-    paddingVertical: 16, 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  buttonIcon: {
-    marginRight: 4,
-  },
-  buttonPrimary: { 
-    backgroundColor: '#007AFF',
-  },
-  buttonDanger: { 
-    backgroundColor: '#FF3B30',
-  },
-  buttonSecondary: { 
-    backgroundColor: '#F3F4F6', 
-    borderWidth: 1, 
-    borderColor: '#E5E7EB',
-  },
-  buttonCamera: { 
-    backgroundColor: '#E0F2FE', 
-    borderWidth: 1, 
-    borderColor: '#BAE6FD',
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { 
-    color: '#FFFFFF', 
-    fontSize: 16, 
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  buttonTextSecondary: { 
-    color: '#374151', 
-    fontSize: 16, 
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  buttonTextDanger: { 
-    color: '#FFFFFF', 
-    fontSize: 16, 
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  imageButtonRow: { flexDirection: 'row', marginBottom: 12 },
-  imageList: { marginTop: 12, marginBottom: 8 },
-  imageThumbContainer: { 
-    marginRight: 12, 
+  modernImageThumb: {
+    marginRight: 12,
     position: 'relative',
   },
-  imageThumb: { 
-    width: 85, 
-    height: 85, 
-    borderRadius: 16, 
+  modernImageThumbImg: {
+    width: 90,
+    height: 90,
+    borderRadius: 16,
     backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
-  deleteButton: { 
-    position: 'absolute', 
-    top: -8, 
-    right: -8, 
-    backgroundColor: '#FF3B30', 
-    borderRadius: 15, 
-    width: 30, 
-    height: 30, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    borderWidth: 2, 
+  modernDeleteButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
     borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
   },
-  deleteButtonText: { 
-    color: '#FFFFFF', 
-    fontSize: 14, 
+  deleteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: 'bold',
   },
-  logsContainer: { marginTop: 8 },
-  logItem: { 
-    padding: 12, 
-    borderRadius: 12, 
-    marginBottom: 8, 
-    borderLeftWidth: 3,
-    backgroundColor: '#F9FAFB',
+  
+  // Activity Log Card
+  activityLogCard: {
+    borderRadius: 24,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.07,
+    shadowRadius: 28,
+    elevation: 6,
   },
-  logSuccess: { 
-    backgroundColor: '#ECFDF5', 
+  logItem: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    backgroundColor: 'rgba(249, 250, 251, 0.6)',
+  },
+  logSuccess: {
+    backgroundColor: 'rgba(236, 253, 245, 0.7)',
     borderLeftColor: '#10B981',
   },
-  logError: { 
-    backgroundColor: '#FEF2F2', 
+  logError: {
+    backgroundColor: 'rgba(254, 242, 242, 0.7)',
     borderLeftColor: '#EF4444',
   },
-  logWarning: { 
-    backgroundColor: '#FFFBEB', 
+  logWarning: {
+    backgroundColor: 'rgba(255, 251, 235, 0.7)',
     borderLeftColor: '#F59E0B',
   },
-  logInfo: { 
-    backgroundColor: '#EFF6FF', 
+  logInfo: {
+    backgroundColor: 'rgba(239, 246, 255, 0.7)',
     borderLeftColor: '#3B82F6',
   },
-  logTime: { 
-    fontSize: 10, 
-    color: '#6B7280', 
+  logTime: {
+    fontSize: 10,
+    color: '#6B7280',
     marginBottom: 3,
     fontWeight: '500',
   },
-  logMessage: { 
-    fontSize: 12, 
-    color: '#1A1A1A',
+  logMessage: {
+    fontSize: 12,
+    color: '#1A1B25',
     fontWeight: '500',
   },
-  emptyText: { 
-    textAlign: 'center', 
-    color: '#9CA3AF', 
-    fontSize: 14, 
+  emptyText: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 14,
     paddingVertical: 20,
     fontWeight: '500',
   },
+  
+  // Modern Stats Card
+  modernStatsCard: {
+    borderRadius: 24,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.07,
+    shadowRadius: 28,
+    elevation: 6,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  modernStatItem: {
+    alignItems: 'center',
+  },
+  modernStatIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modernStatValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1A1B25',
+    marginBottom: 4,
+  },
+  modernStatLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8F92A1',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  processingStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    gap: 8,
+  },
+  processingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8F92A1',
+  },
+  
+  // Action Buttons
+  actionButtonsContainer: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  modernButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  modernButtonPrimary: {
+    backgroundColor: '#7F77FE',
+  },
+  modernButtonDanger: {
+    backgroundColor: '#FF6B6B',
+  },
+  modernButtonSecondary: {
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  modernButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  modernButtonTextSecondary: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1B25',
+    letterSpacing: 0.5,
+  },
+  
+  // Date Picker Modal
   datePickerModal: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
@@ -1410,3 +1594,4 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
 });
+

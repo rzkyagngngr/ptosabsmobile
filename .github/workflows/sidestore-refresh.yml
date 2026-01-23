@@ -1,0 +1,39 @@
+name: SideStore Auto Refresh
+
+on:
+  schedule:
+    # Run every 6 days at 2 AM UTC (adjust to your timezone)
+    - cron: '0 2 */6 * *'
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  refresh-sidestore:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Keep Anisette Server Alive
+        run: |
+          echo "Pinging Anisette server to wake it up..."
+          # Replace with your Render.com URL
+          curl -f https://YOUR-ANISETTE-SERVER.onrender.com/ || echo "Server might be sleeping"
+          
+      - name: Wait for server warmup
+        run: sleep 30
+      
+      - name: Trigger SideStore Refresh (via webhook)
+        env:
+          SIDESTORE_WEBHOOK_URL: ${{ secrets.SIDESTORE_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SIDESTORE_WEBHOOK_URL" ]; then
+            echo "Triggering SideStore refresh..."
+            curl -X POST "$SIDESTORE_WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d '{"action": "refresh", "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}'
+          else
+            echo "No webhook configured. Manual refresh needed."
+          fi
+      
+      - name: Send notification
+        run: |
+          echo "✅ SideStore refresh workflow completed at $(date)"
+          echo "Next scheduled refresh in 6 days"

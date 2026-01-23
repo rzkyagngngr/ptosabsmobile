@@ -24,8 +24,8 @@ const { width } = Dimensions.get('window');
 const ITEM_WIDTH = (width - 96) / 7; // Screen width - more padding for spacing
 
 export default function HistoryScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  // Force light mode - ignore system dark mode preference
+  const isDark = false;
   
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -245,56 +245,48 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
+      <LinearGradient
+        colors={['#8B7CFF', '#B8A9FF', '#E8E3FF', '#F6F8FB', '#FFFFFF']}
+        locations={[0, 0.25, 0.5, 0.75, 1]}
+        start={{ x: 1, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <StatusBar 
-        barStyle="light-content"
+        barStyle="dark-content"
         backgroundColor="transparent"
         translucent={true}
       />
-      
-      {/* Liquid Glass Header */}
-      <View style={styles.headerContainer}>
-        {Platform.OS === 'ios' ? (
-          <BlurView intensity={100} tint="light" style={StyleSheet.absoluteFill} />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.85)' }]} />
-        )}
-        <LinearGradient
-          colors={['rgba(0, 122, 255, 0.75)', 'rgba(0, 81, 213, 0.70)', 'rgba(10, 132, 255, 0.65)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
-        >
-          <View style={styles.header}>
-            <FontAwesome5 name="calendar-alt" size={24} color="#FFFFFF" />
-            <Text style={styles.headerTitle}>Riwayat Absensi</Text>
-          </View>
-        </LinearGradient>
-      </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.contentNoHeader} showsVerticalScrollIndicator={false}>
         <View style={styles.monthNavigator}>
           <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navButton}>
-            <LinearGradient
-              colors={[PRIMARY.LIGHT, PRIMARY.MEDIUM]}
-              style={styles.navButtonGradient}
-            >
-              <FontAwesome5 name="chevron-left" size={18} color="#FFFFFF" />
-            </LinearGradient>
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 45 : 22}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
+            <FontAwesome5 name="chevron-left" size={20} color="#8B7CFF" />
           </TouchableOpacity>
           
           <Text style={styles.monthYearText}>{getMonthYearText()}</Text>
           
           <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navButton}>
-            <LinearGradient
-              colors={[PRIMARY.LIGHT, PRIMARY.MEDIUM]}
-              style={styles.navButtonGradient}
-            >
-              <FontAwesome5 name="chevron-right" size={18} color="#FFFFFF" />
-            </LinearGradient>
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 45 : 22}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
+            <FontAwesome5 name="chevron-right" size={20} color="#8B7CFF" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.calendarCard}>
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 50 : 25}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+          />
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={PRIMARY.MEDIUM} />
@@ -419,6 +411,11 @@ export default function HistoryScreen() {
                 return (
                   <View style={styles.carouselCard}>
                     <View style={styles.holidayCardWrapper}>
+                      <BlurView
+                        intensity={Platform.OS === 'ios' ? 45 : 22}
+                        tint="light"
+                        style={StyleSheet.absoluteFill}
+                      />
                       <LinearGradient
                         colors={['rgba(252, 165, 165, 0.4)', 'rgba(254, 202, 202, 0.3)']}
                         start={{ x: 0, y: 0 }}
@@ -467,6 +464,11 @@ export default function HistoryScreen() {
               {/* Card 2: Summary with 4 Stats */}
               <View style={styles.carouselCard}>
                 <View style={styles.insightsCardWrapper}>
+                  <BlurView
+                    intensity={Platform.OS === 'ios' ? 45 : 22}
+                    tint="light"
+                    style={StyleSheet.absoluteFill}
+                  />
                   <LinearGradient
                     colors={['rgba(147, 197, 253, 0.4)', 'rgba(191, 219, 254, 0.3)']}
                     start={{ x: 0, y: 0 }}
@@ -587,6 +589,11 @@ export default function HistoryScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 55 : 28}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isDark && styles.textDark]}>
                 {selectedDate && `${selectedDate} ${getMonthYearText()}`}
@@ -601,6 +608,11 @@ export default function HistoryScreen() {
                 const icon = getTipeIcon(record.TIPE);
                 return (
                   <View key={index} style={styles.recordCard}>
+                    <BlurView
+                      intensity={Platform.OS === 'ios' ? 45 : 22}
+                      tint="light"
+                      style={StyleSheet.absoluteFill}
+                    />
                     <View style={styles.recordHeader}>
                       <View style={[styles.recordIconContainer, { backgroundColor: icon.color + '20' }]}>
                         <FontAwesome5 name={icon.name} size={20} color={icon.color} />
@@ -643,47 +655,14 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: 'transparent',
   },
   containerDark: {
     backgroundColor: '#000000',
   },
-  headerContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-    height: Platform.OS === 'ios' ? 120 : 110,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    overflow: 'hidden',
-  },
-  headerGradient: {
+  contentNoHeader: {
     flex: 1,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 20,
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  content: {
-    flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 130 : 120,
   },
   monthNavigator: {
     flexDirection: 'row',
@@ -693,37 +672,35 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   navButton: {
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  navButtonGradient: {
-    width: 48,
-    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 3,
   },
   monthYearText: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#1A1B25',
   },
   calendarCard: {
     marginHorizontal: 24,
     marginTop: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 28,
+    overflow: 'hidden',
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 32,
+    elevation: 8,
   },
   dayHeaderRow: {
     flexDirection: 'row',
@@ -811,15 +788,15 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
+    overflow: 'hidden',
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: -12 },
     shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowRadius: 32,
+    elevation: 10,
   },
   modalContentDark: {
     backgroundColor: '#1A1A1A',
@@ -843,10 +820,15 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   recordCard: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
     padding: 16,
     marginBottom: 16,
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 3,
   },
   recordHeader: {
     flexDirection: 'row',
@@ -914,36 +896,34 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
   holidayCardWrapper: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
     height: 330,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 28,
+    elevation: 6,
   },
   insightsCardWrapper: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
     height: 330,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 28,
+    elevation: 6,
   },
   statCardWrapper: {
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
     height: 330,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 28,
+    elevation: 6,
   },
   cardContent: {
     flex: 1,
@@ -1139,3 +1119,4 @@ const styles = StyleSheet.create({
     width: 24,
   },
 });
+

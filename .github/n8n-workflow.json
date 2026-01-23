@@ -1,0 +1,252 @@
+{
+  "name": "SideStore Auto Refresh (Self-Refresh)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 6
+            }
+          ]
+        }
+      },
+      "name": "Every 6 Days Timer",
+      "type": "n8n-nodes-base.schedule",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$credentials.sidestoreUrl}}/api/refresh",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Device-UDID",
+              "value": "={{$credentials.deviceUDID}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "bundleId",
+              "value": "com.pelindo.absensi"
+            },
+            {
+              "name": "force",
+              "value": true
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Trigger SideStore Refresh",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "credentials": {
+        "sidestoreApi": {
+          "id": "1",
+          "name": "SideStore API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.status}}",
+              "operation": "equals",
+              "value2": "success"
+            }
+          ]
+        }
+      },
+      "name": "Refresh Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1850, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot{{$credentials.telegramToken}}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$credentials.telegramChatId}}"
+            },
+            {
+              "name": "text",
+              "value": "✅ SideStore refresh berhasil!\\n\\nWaktu: {{$now.format('DD/MM/YYYY HH:mm')}}\\nApp: PTOS Batch\\nNext refresh: {{$now.plus(6, 'days').format('DD/MM/YYYY')}}"
+            }
+          ]
+        }
+      },
+      "name": "Send Success Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2050, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot{{$credentials.telegramToken}}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$credentials.telegramChatId}}"
+            },
+            {
+              "name": "text",
+              "value": "❌ SideStore refresh gagal!\\n\\nWaktu: {{$now.format('DD/MM/YYYY HH:mm')}}\\nError: {{$json.error}}\\n\\nSilakan refresh manual."
+            }
+          ]
+        }
+      },
+      "name": "Send Fail Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "hours"
+      },
+      "name": "Skip Refresh",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [650, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Last Refresh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Last Refresh": {
+      "main": [
+        [
+          {
+            "node": "Wake Anisette Server",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Refresh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wake Anisette Server": {
+      "main": [
+        [
+          {
+            "node": "Wait for Warmup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Warmup": {
+      "main": [
+        [
+          {
+            "node": "Download Latest IPA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Latest IPA": {
+      "main": [
+        [
+          {
+            "node": "Trigger AltServer Refresh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger AltServer Refresh": {
+      "main": [
+        [
+          {
+            "node": "Wait for Signing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Signing": {
+      "main": [
+        [
+          {
+            "node": "Check Refresh Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Refresh Status": {
+      "main": [
+        [
+          {
+            "node": "Refresh Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh Success?": {
+      "main": [
+        [
+          {
+            "node": "Send Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Fail Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

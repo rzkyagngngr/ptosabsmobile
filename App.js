@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { StyleSheet, Platform } from 'react-native';
 import HomeScreen from './src/screens/HomeScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
@@ -13,6 +11,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import LoadingScreen from './src/components/LoadingScreen';
 import VersionCheckModal from './src/components/VersionCheckModal';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import CustomBottomTabBar from './src/components/CustomBottomTabBar';
 import appJson from './app.json';
 import { authAPI } from './src/services/api';
 
@@ -39,32 +38,12 @@ function MainTabs({ signOut }) {
         },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#8E8E93',
-        tabBarStyle: {
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          elevation: 0,
-          backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.8)' : '#FFFFFF',
-          borderTopWidth: 0,
-          height: 85,
-          paddingBottom: 10,
-          paddingTop: 10,
-        },
-        tabBarBackground: () => (
-          Platform.OS === 'ios' ? (
-            <BlurView
-              intensity={100}
-              tint="light"
-              style={StyleSheet.absoluteFill}
-            />
-          ) : null
-        ),
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
         },
       })}
+      tabBar={props => <CustomBottomTabBar {...props} />}
     >
       <Tab.Screen 
         name="Home" 
@@ -218,7 +197,9 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <NavigationContainer>
+      <NavigationContainer 
+        theme={DefaultTheme}
+      >
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {userToken == null ? (
             <Stack.Screen name="Login">

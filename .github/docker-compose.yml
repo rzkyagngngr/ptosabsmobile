@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # n8n Workflow Automation
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=ChangeMeToSecurePassword
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678
+      - GENERIC_TIMEZONE=Asia/Jakarta
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - sidestore-network
+
+  # Anisette Server (Apple Authentication)
+  anisette:
+    image: dadoum/anisette-v3-server:latest
+    container_name: anisette-server
+    restart: always
+    ports:
+      - "6969:6969"
+    networks:
+      - sidestore-network
+
+  # AltServer Linux (IPA Signing & Installation)
+  altserver:
+    build:
+      context: ./altserver
+      dockerfile: Dockerfile
+    container_name: altserver
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - ANISETTE_URL=http://anisette:6969
+      - LISTEN_PORT=8080
+    volumes:
+      - altserver_data:/data
+    networks:
+      - sidestore-network
+    depends_on:
+      - anisette
+
+volumes:
+  n8n_data:
+    driver: local
+  altserver_data:
+    driver: local
+
+networks:
+  sidestore-network:
+    driver: bridge

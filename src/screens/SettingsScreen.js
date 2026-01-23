@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Linking, Alert, useColorScheme, StatusBar } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SettingsScreen({ navigation, signOut }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  // Force light mode - ignore system dark mode preference
+  const isDark = false;
   const openURL = (url) => {
     Linking.openURL(url);
   };
@@ -48,18 +50,29 @@ export default function SettingsScreen({ navigation, signOut }) {
 
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
+      <LinearGradient
+        colors={['#8B7CFF', '#B8A9FF', '#E8E3FF', '#F6F8FB', '#FFFFFF']}
+        locations={[0, 0.25, 0.5, 0.75, 1]}
+        start={{ x: 1, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <StatusBar 
         barStyle={isDark ? "light-content" : "dark-content"}
         backgroundColor="transparent"
         translucent={true}
       />
-      <View style={[styles.header, isDark && styles.headerDark]}>
-        <Text style={[styles.headerTitle, isDark && styles.textDark]}>Pengaturan</Text>
-      </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.contentNoHeader} showsVerticalScrollIndicator={false}>
+        <Text style={styles.pageTitle}>Pengaturan</Text>
+        
         {userData && (
           <View style={[styles.card, isDark && styles.cardDark]}>
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 50 : 25}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
             <View style={styles.cardHeader}>
               <FontAwesome5 name="user-circle" size={20} color="#007AFF" />
               <Text style={[styles.cardTitle, isDark && styles.textDark]}>Profil User</Text>
@@ -95,6 +108,11 @@ export default function SettingsScreen({ navigation, signOut }) {
         )}
 
         <View style={[styles.card, isDark && styles.cardDark]}>
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 50 : 25}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+          />
           <View style={styles.cardHeader}>
             <FontAwesome5 name="info-circle" size={20} color="#007AFF" />
             <Text style={[styles.cardTitle, isDark && styles.textDark]}>Tentang Aplikasi</Text>
@@ -129,6 +147,11 @@ export default function SettingsScreen({ navigation, signOut }) {
         </View>
 
         <View style={[styles.card, isDark && styles.cardDark]}>
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 50 : 25}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+          />
           <View style={styles.cardHeader}>
             <FontAwesome5 name="book-open" size={20} color="#007AFF" />
             <Text style={[styles.cardTitle, isDark && styles.textDark]}>Cara Penggunaan</Text>
@@ -153,6 +176,11 @@ export default function SettingsScreen({ navigation, signOut }) {
         </View>
 
         <View style={[styles.card, isDark && styles.cardDark]}>
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 50 : 25}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+          />
           <View style={styles.cardHeader}>
             <FontAwesome5 name="exclamation-triangle" size={20} color="#F59E0B" />
             <Text style={[styles.cardTitle, isDark && styles.textDark]}>Catatan</Text>
@@ -176,6 +204,11 @@ export default function SettingsScreen({ navigation, signOut }) {
           style={[styles.logoutButton, isDark && styles.logoutButtonDark]} 
           onPress={handleLogout}
         >
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 50 : 25}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+          />
           <FontAwesome5 name="sign-out-alt" size={16} color="#EF4444" />
           <Text style={styles.logoutText}>Keluar dari Akun</Text>
         </TouchableOpacity>
@@ -189,24 +222,10 @@ export default function SettingsScreen({ navigation, signOut }) {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#F5F7FA',
+    backgroundColor: 'transparent',
   },
   containerDark: {
     backgroundColor: '#000000',
-  },
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 20,
-    paddingHorizontal: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  headerDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   backButton: { 
     padding: 8,
@@ -217,24 +236,17 @@ const styles = StyleSheet.create({
     fontSize: 24, 
     color: '#FFFFFF',
   },
-  header: {
-    backgroundColor: '#FFFFFF',
+  contentNoHeader: {
+    flex: 1,
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 20,
-    paddingHorizontal: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
   },
-  headerDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  headerTitle: { 
-    fontSize: 28, 
-    fontWeight: '700', 
-    color: '#1A1A1A',
+  pageTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1A1B25',
+    marginHorizontal: 24,
+    marginBottom: 24,
+    marginTop: 8,
   },
   textDark: {
     color: '#FFFFFF',
@@ -242,21 +254,17 @@ const styles = StyleSheet.create({
   textSecondaryDark: {
     color: 'rgba(255, 255, 255, 0.6)',
   },
-  content: { 
-    flex: 1,
-    paddingTop: 20,
-  },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 28,
+    overflow: 'hidden',
     padding: 20,
     marginHorizontal: 20,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowColor: '#8B7CFF',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 32,
+    elevation: 8,
   },
   cardDark: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -344,14 +352,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 14,
+    borderRadius: 20,
+    overflow: 'hidden',
     paddingVertical: 16,
     marginHorizontal: 20,
     marginTop: 8,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 6,
   },
   logoutButtonDark: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -363,3 +374,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

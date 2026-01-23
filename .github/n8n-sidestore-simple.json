@@ -1,0 +1,243 @@
+{
+  "name": "SideStore Auto Refresh (Timer)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 6,
+              "triggerAtHour": 2
+            }
+          ]
+        }
+      },
+      "name": "Every 6 Days at 2 AM",
+      "type": "n8n-nodes-base.schedule",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "schedule-node"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$credentials.sidestoreUrl}}/api/apps/refresh",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer ={{$credentials.sidestoreToken}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "bundleId",
+              "value": "com.pelindo.absensi"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000,
+          "retry": {
+            "maxRetries": 3,
+            "retryInterval": 10000
+          }
+        }
+      },
+      "name": "Trigger SideStore Self-Refresh",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "id": "trigger-refresh"
+    },
+    {
+      "parameters": {
+        "amount": 45,
+        "unit": "seconds"
+      },
+      "name": "Wait for Signing",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "id": "wait-node"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$credentials.sidestoreUrl}}/api/apps/status/com.pelindo.absensi",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer ={{$credentials.sidestoreToken}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Check App Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300],
+      "id": "check-status"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.status}}",
+              "operation": "equals",
+              "value2": "active"
+            },
+            {
+              "value1": "={{$json.daysUntilExpiry}}",
+              "operation": "largerEqual",
+              "value2": "6"
+            }
+          ]
+        },
+        "combineOperation": "all"
+      },
+      "name": "Refresh Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1050, 300],
+      "id": "check-success"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot{{$credentials.telegramToken}}/sendMessage",
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$credentials.telegramChatId}}"
+            },
+            {
+              "name": "text",
+              "value": "✅ *SideStore Refresh Berhasil!*\n\n📱 App: PTOS Batch Absensi\n📅 Tanggal: {{$now.format('DD/MM/YYYY HH:mm')}}\n⏰ Expire: {{$json.expiryDate}}\n🔄 Next refresh: {{$now.plus(6, 'days').format('DD/MM/YYYY')}}"
+            },
+            {
+              "name": "parse_mode",
+              "value": "Markdown"
+            }
+          ]
+        }
+      },
+      "name": "Send Success Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 200],
+      "id": "notify-success"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot{{$credentials.telegramToken}}/sendMessage",
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$credentials.telegramChatId}}"
+            },
+            {
+              "name": "text",
+              "value": "❌ *SideStore Refresh Gagal!*\n\n📱 App: PTOS Batch Absensi\n📅 Tanggal: {{$now.format('DD/MM/YYYY HH:mm')}}\n⚠️ Error: {{$json.error || 'Unknown error'}}\n\n💡 Action: Cek koneksi iPhone atau refresh manual via SideStore app"
+            },
+            {
+              "name": "parse_mode",
+              "value": "Markdown"
+            }
+          ]
+        }
+      },
+      "name": "Send Fail Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 400],
+      "id": "notify-fail"
+    }
+  ],
+  "connections": {
+    "Every 6 Days at 2 AM": {
+      "main": [
+        [
+          {
+            "node": "Trigger SideStore Self-Refresh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger SideStore Self-Refresh": {
+      "main": [
+        [
+          {
+            "node": "Wait for Signing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Signing": {
+      "main": [
+        [
+          {
+            "node": "Check App Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check App Status": {
+      "main": [
+        [
+          {
+            "node": "Refresh Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh Success?": {
+      "main": [
+        [
+          {
+            "node": "Send Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Fail Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
